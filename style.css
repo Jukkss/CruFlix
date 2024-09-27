@@ -1,6 +1,7 @@
 
 header {
     flex: 1;
+    height: 100%;
     background-color: #10002e;
     color: #ffffff;
     padding: 0px;
