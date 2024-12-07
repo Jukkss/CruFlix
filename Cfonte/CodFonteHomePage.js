@@ -12,7 +12,8 @@ const favorites = [];
 // Chamando displays no carregamento
 document.addEventListener('DOMContentLoaded', async () => {
     await Promise.all([
-        fetchPopularSeries()
+        fetchPopularSeries(),
+        showFavoriteCards() 
     ]);
 });
 
@@ -26,6 +27,7 @@ async function fetchPopularSeries() {
         console.error('Erro ao buscar dados da API:', error);
     }
 }
+
 // Adicionar aos favoritos
 async function addToFavorites(id) {
     try {
@@ -203,6 +205,121 @@ async function showSeriesDetails(id) {
     }
 }
 // Display Carrosel
+function displayCarousel(series) {
+    const carouselContainer = document.getElementById('carouselContainer'); // Contêiner do carrossel
+    carouselContainer.innerHTML = `
+        <div id="carrosselSeries" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                ${series.map((serie, index) => `
+                    <div class="carousel-item ${index === 0 ? 'active' : ''}">
+                        <img src="${IMAGE_BASE_URL}${serie.backdrop_path}" class="d-block w-100 h-50" alt="${serie.name}" style="height: 500px; object-fit: cover; border-radius: 50px;">
+                        <div class="carousel-caption d-none d-md-block">
+                            <h5>${serie.name.replace(/\s/g, '')}</h5>
+                            <p style="text-shadow: 4px 4px 10px rgba(0, 0, 0, 0.8); color: aliceblue;">${serie.overview || 'Descrição indisponível.'}</p>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            <a class="carousel-control-prev" href="#carrosselSeries" role="button" data-bs-slide="prev" style="text-decoration: none;">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="sr-only">Anterior</span>
+            </a>
+            <a class="carousel-control-next" href="#carrosselSeries" role="button" data-bs-slide="next" style="text-decoration: none;">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="sr-only">Próxima</span>
+            </a>
+        </div>
+    `;
+}
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
+        const data = await response.json();
+        const uniqueCarouselSeries = data.results.slice(4, 9); // Selecionando séries diferentes das exibidas nos cards
+        displayCarousel(uniqueCarouselSeries);
+    } catch (error) {
+        console.error('Erro ao carregar séries para o carrossel:', error);
+    }
+});
+
+//Display favoritas
+async function showFavoriteCards() {
+    try {
+        // Recuperando o container de favoritos
+        const favoritesContainer = document.getElementById('favoritesContainer');
+        favoritesContainer.innerHTML = ''; // Limpar o container antes de adicionar novos cards
+
+        // Fazendo a requisição para pegar as séries favoritas salvas
+        const response = await fetch('http://localhost:3000/favorites');
+        const favorites = await response.json();
+
+        // Caso não haja favoritos, exibe uma mensagem
+        if (favorites.length === 0) {
+            favoritesContainer.innerHTML = '<p>Você ainda não tem séries favoritas.</p>';
+            return;
+        }
+
+        // Agora buscamos os detalhes de cada série favorita usando a API externa
+        const seriesDetails = await Promise.all(favorites.map(async (fav) => {
+            const seriesResponse = await fetch(`https://api.themoviedb.org/3/tv/${fav.id}?api_key=${API_KEY}&language=pt-BR`);
+            return seriesResponse.json();
+        }));
+
+        // Exibe os detalhes das séries favoritas
+        seriesDetails.forEach((favorite) => {
+            const card = document.createElement('div');
+            card.classList.add('col-md-3', 'p-2');
+            card.innerHTML = `
+                <div class="card" style="max-width: auto; border-radius: 20px; background-color: #10002e; height: 100%;">
+                    <img src="${IMAGE_BASE_URL}${favorite.poster_path}" class="card-img-top" alt="${favorite.name}" style="border-radius: 20px; max-height: 250px; object-fit: cover;">
+                    <div class="card-body">
+                        <h5 class="card-title text-center" style="color: aliceblue;">${favorite.name}</h5>
+                        <p class="card-text text-center" style="color: aliceblue;">${favorite.overview || 'Sem descrição disponível.'}</p>
+                    </div>
+                    <div class="card-footer text-center" style="border-top: 1px solid #444; background-color: #10002e;">
+                        <div class="card-buttons">
+                            <button class="btn btn-secondary watch-btn" data-id="${favorite.id}">Assistir</button>
+                            <button class="btn btn-primary fav-btn" data-id="${favorite.id}">Remover dos Favoritos</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            favoritesContainer.appendChild(card);
+
+            // Adicionar eventos aos botões
+            card.querySelector('.watch-btn').addEventListener('click', async () => {
+                await showSeriesDetails(favorite.id);
+            });
+
+            card.querySelector('.fav-btn').addEventListener('click', () => {
+                removeFromFavorites(favorite.id); // Função para remover dos favoritos
+            });
+        });
+    } catch (error) {
+        console.error('Erro ao carregar os favoritos:', error);
+    }
+}
+
+// Função para remover uma série dos favoritos
+async function removeFromFavorites(id) {
+    try {
+        // Enviar uma requisição para remover o favorito
+        const response = await fetch(`http://localhost:3000/favorites/${id}`, {
+            method: 'DELETE',
+        });
+
+        if (response.ok) {
+            alert('Série removida dos favoritos!');
+            showFavoriteCards(); // Recarrega os favoritos após remoção
+        } else {
+            alert('Erro ao remover a série dos favoritos.');
+        }
+    } catch (error) {
+        console.error('Erro ao remover a série dos favoritos:', error);
+    }
+}
+
+
 
 
 

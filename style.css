@@ -123,3 +123,23 @@ button:hover .tooltiptext {
     border-radius: 10px; 
 }
 
+/*ViewPort*/
+@media (max-width: 768px) {
+    .carousel-item img {
+        border-radius: 20px;
+        object-fit: contain;
+    }
+    .carousel-caption h5,
+    .carousel-caption p {
+        font-size: 14px; 
+    }
+}
+
+@media (max-width: 576px) {
+    .carousel-caption h5,
+    .carousel-caption p {
+        font-size: 12px;
+    }
+}
+
+
