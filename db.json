@@ -1,16 +1,26 @@
 {
   "favorites": [
     {
-      "id": "257048"
+      "id": "94722"
     },
     {
       "id": "257064"
     },
     {
-      "id": "94722"
-    },
+      "id": "257048"
+    }
+  ],
+  "aluno": [
     {
-      "id": "13008"
+      "nome": "João Victor Soares",
+      "curso": "Sistemas de Informação",
+      "turma": "2024.2 - Manhã",
+      "comentários": "Acadêmico formado em Eletrotécnica pelo Centro Federal de Educação Tecnológica de Minas Gerais, em Curvelo. Atualmente, sou estudante do 1 período de Sistemas de Informação na Pontifícia Universidade Católica de Minas Gerais, campus São Gabriel.",
+      "redes_sociais": {
+        "letterboxd": "https://letterboxd.com/Jukkss/",
+        "linkedin": "https://www.linkedin.com/in/jo%C3%A3o-victor-soares-308756325/?locale=en_US",
+        "instagram": "https://www.instagram.com/jaov.ss/"
+      }
     }
   ]
 }

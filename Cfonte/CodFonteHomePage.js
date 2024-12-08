@@ -5,16 +5,35 @@ const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 const container = document.getElementById('cards-container');
 const modal = new bootstrap.Modal(document.getElementById('seriesModal'));
 const modalContent = document.getElementById('modalContent');
-const modalFavBtn = document.getElementById('modalFavBtn');
 const favorites = [];
 
 //{Funcionalidades de Suporte}
 // Chamando displays no carregamento
 document.addEventListener('DOMContentLoaded', async () => {
-    await Promise.all([
-        fetchPopularSeries(),
-        showFavoriteCards() 
-    ]);
+    try {
+        // Chamar checkServerStatus antes de carregar os dados
+        await checkServerStatus();
+
+        // Carregar todas as séries populares de uma vez
+        const response = await fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
+        const data = await response.json();
+
+        // Exibir séries no carrossel (com limite diferente)
+        const uniqueCarouselSeries = data.results.slice(4, 9);
+        displayCarousel(uniqueCarouselSeries);
+
+        // Exibir séries nos cards (primeiras 4)
+        displayCards(data.results.slice(0, 4));
+
+        // Exibir os favoritos
+        showFavoriteCards();
+
+        // Carregar as informações do aluno dinamicamente
+        loadAlunoInfo();
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        showToast('Erro ao carregar dados. Por favor, tente novamente.', 'danger');
+    }
 });
 
 // Buscar séries populares
@@ -28,51 +47,98 @@ async function fetchPopularSeries() {
     }
 }
 
-// Adicionar aos favoritos
-async function addToFavorites(id) {
-    try {
-        // Verifica se a série já está nos favoritos do servidor
-        const response = await fetch('http://localhost:3000/favorites');
-        const favorites = await response.json();
+async function addEventListeners() {
+    document.querySelectorAll('.favorite-btn').forEach(async (button) => {
+        if (!button.hasAttribute('data-listener')) {
+            button.setAttribute('data-listener', 'true');
+            
+            const serieId = button.getAttribute('data-id');
+            const icon = button.querySelector('.favorite-icon');
+            const tooltip = button.querySelector('.tooltiptext');
+            
+            const isFavorite = await checkIfFavorite(serieId);
+            updateFavoriteUI(icon, tooltip, isFavorite);
 
-        if (favorites.some(fav => fav.id === id)) {
-            alert('A série já está nos favoritos.');
-            return;
+            button.addEventListener('click', async () => {
+                const updatedIsFavorite = await handleFavorite(serieId);
+                updateFavoriteUI(icon, tooltip, updatedIsFavorite);
+            });
         }
+    });
 
-        // Adiciona a nova série aos favoritos no servidor
-        const favoriteData = { id };
-        const addResponse = await fetch('http://localhost:3000/favorites', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(favoriteData),
-        });
-
-        if (addResponse.ok) {
-            alert('Série adicionada aos favoritos!');
-        } else {
-            alert('Erro ao adicionar aos favoritos.');
+    // Adiciona evento de clique ao botão "Assistir"
+    document.querySelectorAll('.watch-btn').forEach((button) => {
+        if (!button.hasAttribute('data-listener')) {
+            button.setAttribute('data-listener', 'true');
+            
+            const serieId = button.getAttribute('data-id');
+            
+            button.addEventListener('click', () => {
+                showSeriesDetails(serieId); // Chama a função de detalhes
+            });
         }
-    } catch (error) {
-        console.error('Erro ao adicionar aos favoritos:', error);
-        alert('Erro ao adicionar aos favoritos.');
+    });
+}
+async function checkIfFavorite(serieId) {
+    const response = await fetch('http://localhost:3000/favorites');
+    const favorites = await response.json();
+    return favorites.some(fav => fav.id === serieId);
+}
+async function handleFavorite(serieId) {
+    const isFavorite = await checkIfFavorite(serieId);
+
+    if (isFavorite) {
+        await removeFromFavorites(serieId);
+    } else {
+        await addToFavorites(serieId);
+    }
+
+    return !isFavorite;
+}
+function updateFavoriteUI(icon, tooltip, isFavorite) {
+    if (isFavorite) {
+        icon.src = 'imagens/delete.png';
+        tooltip.textContent = 'Deseja remover dos favoritos?';
+    } else {
+        icon.src = 'imagens/adicionar.png';
+        tooltip.textContent = 'Deseja adicionar aos favoritos?';
     }
 }
-// Adicionar eventos aos botões
-function addEventListeners() {
-    document.querySelectorAll('.watch-btn').forEach((button) => {
-        button.addEventListener('click', async () => {
-            const serieId = button.getAttribute('data-id');
-            await showSeriesDetails(serieId);
-        });
-    });
+// Função para mostrar o toast
+function showToast(message, type = 'primary') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    
+    // Define a mensagem e o tipo de alerta (ex: primary, success, danger)
+    toastMessage.textContent = message;
+    toast.querySelector('.toast').className = `toast align-items-center text-bg-${type} border-0`;
 
-    document.querySelectorAll('.fav-btn').forEach((button) => {
-        button.addEventListener('click', () => {
-            const serieId = button.getAttribute('data-id');
-            addToFavorites(serieId);
-        });
-    });
+    // Exibe o toast
+    toast.style.display = 'block';
+    const bootstrapToast = new bootstrap.Toast(toast.querySelector('.toast'));
+    bootstrapToast.show();
+
+    // Esconde o toast após um tempo
+    setTimeout(() => {
+        bootstrapToast.hide();
+    }, 8000);
+}
+async function checkServerStatus() {
+    const toastMessage = document.getElementById('toast-message');
+
+    // Exibe a mensagem "Verificando problemas..." no toast
+    showToast('Verificando JsonServer...', 'warning');  // Tipo de alerta pode ser 'warning'
+
+    try {
+        const response = await fetch('http://localhost:3000/favorites');
+        if (!response.ok) throw new Error('Erro no servidor');
+        
+        // Se o servidor estiver ativo
+        showToast('JSON Server está ativo!', 'success');
+    } catch (error) {
+        // Se o servidor não estiver ativo
+        showToast('Erro: JSON Server não está ativo! Ative-o no seu terminal.', 'danger');
+    }
 }
 
 //{Funcionalidades de exibição}
@@ -92,8 +158,13 @@ function displayCards(series) {
                 </div>
                 <div class="card-footer text-center" style="border-top: 1px solid #444; background-color: #10002e;">
                     <div class="card-buttons">
-                        <button class="btn btn-secondary watch-btn" data-id="${serie.id}">Assistir</button>
-                        <button class="btn btn-primary fav-btn" data-id="${serie.id}">Adicionar aos Favoritos</button>
+                        <button class="btn btn-secondary watch-btn" data-id="${serie.id}">
+                            Assistir
+                        </button>
+                        <button class="btn btn-sm favorite-btn" data-id="${serie.id}" style="background-color: white; width: 40px; height: 40px; border-radius: 50%; padding: 0; display: flex; justify-content: center; align-items: center;">
+                            <img src="imagens/adicionar.png" class="favorite-icon" style="max-width: 24px; max-height: 24px; object-fit: contain;"/>
+                            <span class="tooltiptext">Deseja adicionar aos favoritos?</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -115,26 +186,26 @@ async function showSeriesDetails(id) {
 
         modalContent.innerHTML = `
             <div class="container">
-                <div class="row" style="background-color:#10002e; border-top-left-radius: 20px; border-top-right-radius: 20px;">
-                    <div class="col-12 justify-content-center position-relative">
+                <!-- Primeira Row - Imagem e Título -->
+                <div class="row justify-content-center" style="background-color:#10002e; border-top-left-radius: 20px; border-top-right-radius: 20px;">
+                    <div class="col-12 text-center position-relative">
                         <img src="${IMAGE_BASE_URL}${data.backdrop_path}" class="w-100 pt-2" style="max-height: 400px; object-fit: cover; border-radius: 20px;">
-                        <div class="text-center position-relative" style="top: -100px; color: aliceblue; text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.8);">
+                        
+                        <div class="position-relative" style="top: -100px; color: aliceblue; text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.8);">
                             <h3>${data.name}</h3>
+                            
                             <button type="button" class="btn btn-lg" style="background-color: #10002e; color: aliceblue;" id="assistirBtn">
                                 Assistir
                                 <span class="tooltiptext">Função indisponível no momento</span>
                             </button>
-
-                            <button class="btn btn-sm" style="background-color: white; width: 40px; height: 40px; border-radius: 50%;" id="modalFavBtn">
-                                <img src="imagens/adicionar.png" style="max-width: 100%;">
-                                <span class="tooltiptext">Deseja adicionar aos favoritos?</span>
-                            </button>
                         </div>
                     </div>
                 </div>
-                <div class="row" style="background-color: #10002e; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;"; border-top-right-radius: 20px;">
-                    <div class="col-md-8">
-                        <p class="list-group-item text-center pt-4" style="color: white; height: 100%;">${data.overview || 'Descrição indisponível.'}</p>
+
+                <!-- Segunda Row - Descrição, Gêneros e Outras Informações -->
+                <div class="row justify-content-center" style="background-color: #10002e; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+                    <div class="col-md-8 text-center">
+                        <p class="list-group-item pt-4" style="color: white; height: 100%;">${data.overview || 'Descrição indisponível.'}</p>
                     </div>
                     <div class="col-md-4">
                         <ul class="list-group list-group-flush p-2" style="border-radius: 20px;">
@@ -147,63 +218,65 @@ async function showSeriesDetails(id) {
                         </ul>
                     </div>
                 </div>
-            <div class="row">
-                <div class="col-12">
-                    <h4 class="mt-4">Elenco Principal</h4>
-                    <div id="castCarousel" class="carousel slide" data-bs-ride="carousel">
-                        <div class="carousel-inner">
-                            ${castData.cast && castData.cast.length > 0 
-                                ? castData.cast
-                                    .reduce((acc, actor, index) => {
-                                        // Verifica se estamos começando um novo slide
-                                        if (index % 5 === 0) acc.push([]);
-                                        acc[acc.length - 1].push(actor);
-                                        return acc;
-                                    }, [])
-                                    .map((slide, i) => `
-                                        <div class="carousel-item ${i === 0 ? 'active' : ''}">
-                                            <div class="d-flex justify-content-center">
-                                                ${slide
-                                                    .map(actor => `
-                                                        <div class="m-2 text-center">
-                                                            <img src="${actor.profile_path ? IMAGE_BASE_URL + actor.profile_path : 'https://via.placeholder.com/150'}" 
-                                                                class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
-                                                            <p class="mt-1" style="font-size: 14px; color: #10002e;">${actor.name}</p>
-                                                        </div>
-                                                    `)
-                                                    .join('')}
+
+                <!-- Terceira Row - Elenco Principal -->
+                <div class="row justify-content-center">
+                    <div class="col-12">
+                        <h4 class="mt-4 text-center">Elenco Principal</h4>
+                        <div id="castCarousel" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                ${castData.cast && castData.cast.length > 0 
+                                    ? castData.cast
+                                        .reduce((acc, actor, index) => {
+                                            // Verifica se estamos começando um novo slide
+                                            if (index % 5 === 0) acc.push([]);
+                                            acc[acc.length - 1].push(actor);
+                                            return acc;
+                                        }, [])
+                                        .map((slide, i) => `
+                                            <div class="carousel-item ${i === 0 ? 'active' : ''}">
+                                                <div class="d-flex justify-content-center">
+                                                    ${slide
+                                                        .map(actor => `
+                                                            <div class="m-2 text-center">
+                                                                <img src="${actor.profile_path ? IMAGE_BASE_URL + actor.profile_path : 'https://via.placeholder.com/150'}" 
+                                                                    class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
+                                                                <p class="mt-1" style="font-size: 14px; color: #10002e;">${actor.name}</p>
+                                                            </div>
+                                                        `)
+                                                        .join('')}
+                                                </div>
                                             </div>
-                                        </div>
-                                    `)
-                                    .join('')
-                                : `<div class="carousel-item active text-center">
-                                    <p style="font-size: 18px; color: #10002e;">Atores não encontrados</p>
-                                </div>`
-                            }
+                                        `)
+                                        .join('')
+                                    : `<div class="carousel-item active text-center">
+                                        <p style="font-size: 18px; color: #10002e;">Atores não encontrados</p>
+                                    </div>`
+                                }
+                            </div>
+                            <button class="carousel-control-prev btn-dark" type="button" data-bs-target="#castCarousel" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next btn-dark" type="button" data-bs-target="#castCarousel" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
                         </div>
-                        <button class="carousel-control-prev btn-dark" type="button" data-bs-target="#castCarousel" data-bs-slide="prev">
-                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                            <span class="visually-hidden">Previous</span>
-                        </button>
-                        <button class="carousel-control-next btn-dark" type="button" data-bs-target="#castCarousel" data-bs-slide="next">
-                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                            <span class="visually-hidden">Next</span>
-                        </button>
                     </div>
                 </div>
             </div>
-        </div>
         `;
 
-        // Adicionar funcionalidade ao botão "Adicionar aos Favoritos"
-        const favButton = document.getElementById('modalFavBtn');
-        favButton.addEventListener('click', () => addToFavorites(id));
+        // Adicionar funcionalidade ao botão "Adicionar aos Favoritos" no modal
+        // O botão de favoritos agora está no card, não no modal.
 
         modal.show();
     } catch (error) {
         console.error('Erro ao carregar os detalhes da série:', error);
     }
 }
+
 // Display Carrosel
 function displayCarousel(series) {
     const carouselContainer = document.getElementById('carouselContainer'); // Contêiner do carrossel
@@ -243,81 +316,138 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 //Display favoritas
+async function addToFavorites(serieId) {
+    try {
+        await fetch('http://localhost:3000/favorites', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: serieId }),
+        });
+        alert('Série adicionada aos favoritos!');
+    } catch (error) {
+        alert('Erro ao adicionar aos favoritos!');
+    }
+}
+
+async function removeFromFavorites(serieId) {
+    try {
+        await fetch(`http://localhost:3000/favorites/${serieId}`, {
+            method: 'DELETE',
+        });
+        alert('Série removida dos favoritos!');
+    } catch (error) {
+        alert('Erro ao remover dos favoritos!');
+    }
+}
+
 async function showFavoriteCards() {
     try {
-        // Recuperando o container de favoritos
-        const favoritesContainer = document.getElementById('favoritesContainer');
-        favoritesContainer.innerHTML = ''; // Limpar o container antes de adicionar novos cards
-
-        // Fazendo a requisição para pegar as séries favoritas salvas
         const response = await fetch('http://localhost:3000/favorites');
         const favorites = await response.json();
 
-        // Caso não haja favoritos, exibe uma mensagem
+        // Limpar os favoritos antes de exibir
+        const favoritesContainer = document.getElementById('favoritesContainer');
+        favoritesContainer.innerHTML = '';
+
         if (favorites.length === 0) {
             favoritesContainer.innerHTML = '<p>Você ainda não tem séries favoritas.</p>';
             return;
         }
 
-        // Agora buscamos os detalhes de cada série favorita usando a API externa
+        // Pega os detalhes das séries favoritas
         const seriesDetails = await Promise.all(favorites.map(async (fav) => {
-            const seriesResponse = await fetch(`https://api.themoviedb.org/3/tv/${fav.id}?api_key=${API_KEY}&language=pt-BR`);
+            const seriesResponse = await fetch(`${BASE_URL}/tv/${fav.id}?api_key=${API_KEY}&language=pt-BR`);
             return seriesResponse.json();
         }));
 
-        // Exibe os detalhes das séries favoritas
-        seriesDetails.forEach((favorite) => {
-            const card = document.createElement('div');
-            card.classList.add('col-md-3', 'p-2');
-            card.innerHTML = `
-                <div class="card" style="max-width: auto; border-radius: 20px; background-color: #10002e; height: 100%;">
-                    <img src="${IMAGE_BASE_URL}${favorite.poster_path}" class="card-img-top" alt="${favorite.name}" style="border-radius: 20px; max-height: 250px; object-fit: cover;">
-                    <div class="card-body">
-                        <h5 class="card-title text-center" style="color: aliceblue;">${favorite.name}</h5>
-                        <p class="card-text text-center" style="color: aliceblue;">${favorite.overview || 'Sem descrição disponível.'}</p>
-                    </div>
-                    <div class="card-footer text-center" style="border-top: 1px solid #444; background-color: #10002e;">
-                        <div class="card-buttons">
-                            <button class="btn btn-secondary watch-btn" data-id="${favorite.id}">Assistir</button>
-                            <button class="btn btn-primary fav-btn" data-id="${favorite.id}">Remover dos Favoritos</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            favoritesContainer.appendChild(card);
+        // Exibe os favoritos sem duplicação
+        displayFavoriteCards(seriesDetails, favoritesContainer);
 
-            // Adicionar eventos aos botões
-            card.querySelector('.watch-btn').addEventListener('click', async () => {
-                await showSeriesDetails(favorite.id);
-            });
-
-            card.querySelector('.fav-btn').addEventListener('click', () => {
-                removeFromFavorites(favorite.id); // Função para remover dos favoritos
-            });
-        });
     } catch (error) {
         console.error('Erro ao carregar os favoritos:', error);
     }
 }
 
-// Função para remover uma série dos favoritos
-async function removeFromFavorites(id) {
-    try {
-        // Enviar uma requisição para remover o favorito
-        const response = await fetch(`http://localhost:3000/favorites/${id}`, {
-            method: 'DELETE',
-        });
+async function displayFavoriteCards(series, favoritesContainer) {
+    favoritesContainer.innerHTML = ''; // Limpa o conteúdo atual
 
-        if (response.ok) {
-            alert('Série removida dos favoritos!');
-            showFavoriteCards(); // Recarrega os favoritos após remoção
-        } else {
-            alert('Erro ao remover a série dos favoritos.');
+    series.forEach((serie) => {
+        const card = document.createElement('div');
+        card.classList.add('col-md-3', 'p-2');
+
+        const isFavorite = true; // Série é sempre favorita quando chega aqui
+
+        // Ajusta o botão e a lógica de adicionar/remover
+        const buttonHTML = isFavorite
+            ? `<button class="btn btn-danger remove-btn" data-id="${serie.id}">Remover dos Favoritos</button>`
+            : `<button class="btn btn-primary fav-btn" data-id="${serie.id}">Adicionar aos Favoritos</button>`;
+
+        card.innerHTML = `
+            <div class="card" style="max-width: auto; border-radius: 20px; background-color: #10002e; height: 100%;">
+                <img src="${IMAGE_BASE_URL}${serie.poster_path}" class="card-img-top" alt="${serie.name}" style="border-radius: 20px; max-height: 250px; object-fit: cover;">
+                <div class="card-body">
+                    <h5 class="card-title text-center" style="color: aliceblue;">${serie.name}</h5>
+                    <p class="card-text text-center" style="color: aliceblue;">${serie.overview || 'Sem descrição disponível.'}</p>
+                </div>
+                <div class="card-footer text-center" style="border-top: 1px solid #444; background-color: #10002e;">
+                    <div class="card-buttons">
+                        <button class="btn btn-secondary watch-btn" data-id="${serie.id}">Assistir</button>
+                        <button class="btn btn-sm favorite-btn" data-id="${serie.id}" style="background-color: white; width: 40px; height: 40px; border-radius: 50%; padding: 0; display: flex; justify-content: center; align-items: center;">
+                            <img src="imagens/adicionar.png" class="favorite-icon" style="max-width: 24px; max-height: 24px; object-fit: contain;"/>
+                            <span class="tooltiptext">Deseja adicionar aos favoritos?</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        favoritesContainer.appendChild(card);
+    });
+
+    addEventListeners(); // Adiciona os listeners de evento aos botões
+}
+
+// Informações Aluno
+async function loadAlunoInfo() {
+    try {
+        // Fetch para buscar os dados do aluno a partir do endpoint JSON
+        const response = await fetch('http://localhost:3000/aluno'); // Caminho correto para o JSON
+        if (!response.ok) throw new Error('Não foi possível carregar o arquivo JSON');
+
+        // O JSON contém um array, então precisamos acessar o primeiro item
+        const alunoInfoArray = await response.json();
+        const alunoInfo = alunoInfoArray[0]; // Acessando o primeiro objeto do array
+
+        // Verificar se as propriedades existem no JSON
+        if (!alunoInfo || !alunoInfo.redes_sociais) {
+            throw new Error('Dados do aluno não encontrados no arquivo JSON');
         }
+
+        // Preencher os dados na página
+        document.querySelector('.container .col-md-5 p.text-center').textContent = alunoInfo.comentários;
+
+        // Atualizar links das redes sociais
+        const redesSociais = alunoInfo.redes_sociais;
+        document.getElementById('instagram').href = redesSociais.instagram;
+        document.getElementById('linkedin').href = redesSociais.linkedin;
+        document.getElementById('letterboxd').href = redesSociais.letterboxd;
+
+        // Informações do aluno no lado direito
+        const listaAluno = document.querySelector('.container .col-md-6 .list-group');
+        listaAluno.innerHTML = `
+            <li class="list-group-item"><strong>Aluno:</strong> ${alunoInfo.nome}</li>
+            <li class="list-group-item"><strong>Curso:</strong> ${alunoInfo.curso}</li>
+            <li class="list-group-item"><strong>Turma:</strong> ${alunoInfo.turma}</li>
+        `;
     } catch (error) {
-        console.error('Erro ao remover a série dos favoritos:', error);
+        console.error('Erro ao carregar as informações do aluno:', error);
+        showToast('Erro ao carregar as informações do aluno.', 'danger');
     }
 }
+
+
 
 
 
