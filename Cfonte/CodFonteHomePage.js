@@ -152,7 +152,7 @@ function displayCards(series) {
         card.innerHTML = `
             <div class="card" style="max-width: auto; border-radius: 20px; background-color: #10002e; height: 100%;">
                 <img src="${IMAGE_BASE_URL}${serie.poster_path}" class="card-img-top" alt="${serie.name}" style="border-radius: 20px; max-height: 250px; object-fit: cover;">
-                <div class="card-body">
+                <div class="card-body" style="max-height: 150px;">
                     <h5 class="card-title text-center" style="color: aliceblue;">${serie.name}</h5>
                     <p class="card-text text-center" style="color: aliceblue;">${serie.overview || 'Sem descrição disponível.'}</p>
                 </div>
@@ -387,7 +387,7 @@ async function displayFavoriteCards(series, favoritesContainer) {
         card.innerHTML = `
             <div class="card" style="max-width: auto; border-radius: 20px; background-color: #10002e; height: 100%;">
                 <img src="${IMAGE_BASE_URL}${serie.poster_path}" class="card-img-top" alt="${serie.name}" style="border-radius: 20px; max-height: 250px; object-fit: cover;">
-                <div class="card-body">
+                <div class="card-body" style="max-height: 150px;">
                     <h5 class="card-title text-center" style="color: aliceblue;">${serie.name}</h5>
                     <p class="card-text text-center" style="color: aliceblue;">${serie.overview || 'Sem descrição disponível.'}</p>
                 </div>
@@ -446,12 +446,3 @@ async function loadAlunoInfo() {
         showToast('Erro ao carregar as informações do aluno.', 'danger');
     }
 }
-
-
-
-
-
-
-
-
-
