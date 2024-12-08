@@ -2,7 +2,7 @@ const API_KEY = 'e545efcffe7242ab3c02c57d5baf9f86';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
-// Gêneros mapeados para IDs
+// Gêneros mapeados
 const genres = {
     "Ação": 10759,
     "Comédia": 35,
@@ -13,11 +13,8 @@ const genres = {
 // Carregamento da página
 document.addEventListener('DOMContentLoaded', () => {
     const toastMessage = document.getElementById('toastMessage');
-    
-    // Defina a mensagem como "Séries gerais" ao carregar a página
     toastMessage.textContent = "Séries gerais";
-    
-    // Exibe o Toast automaticamente ao carregar a página
+
     const toast = new bootstrap.Toast(document.getElementById('genreToast'));
     toast.show();
 
@@ -25,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchPopularSeries();
 });
 async function addEventListeners() {
+    // Adiciona evento de clique ao botão "Favoritar"
     document.querySelectorAll('.favorite-btn').forEach(async (button) => {
         if (!button.hasAttribute('data-listener')) {
             button.setAttribute('data-listener', 'true');
@@ -51,7 +49,7 @@ async function addEventListeners() {
             const serieId = button.getAttribute('data-id');
             
             button.addEventListener('click', () => {
-                showSeriesDetails(serieId); // Chama a função de detalhes
+                showSeriesDetails(serieId);
             });
         }
     });
@@ -86,8 +84,6 @@ function updateFavoriteUI(icon, tooltip, isFavorite) {
 function showGenreToast(genreName) {
     const toastMessage = document.getElementById('toastMessage');
     toastMessage.textContent = `Séries de: ${genreName}`;
-
-    // Exibir o Toast
     const toast = new bootstrap.Toast(document.getElementById('genreToast'));
     toast.show();
 }
@@ -117,18 +113,14 @@ async function fetchSeriesByGenre(genreId) {
 // Função para exibir séries no layout
 function displaySeries(seriesList) {
     const container = document.getElementById('seriesContainer');
-    container.innerHTML = ''; // Limpa o container antes de adicionar os novos cards
+    container.innerHTML = '';
 
     seriesList.forEach((serie) => {
         const card = document.createElement('div');
         card.classList.add('col-md-3', 'p-2');
-        
-        // Caminho para o poster ou placeholder
         const poster = serie.poster_path
             ? `${IMAGE_BASE_URL}${serie.poster_path}`
             : 'imagens/placeholder.png';
-
-        // Criação do conteúdo do card
         card.innerHTML = `
             <div class="card" style="max-width: auto; border-radius: 20px; background-color: #10002e; height: 100%;">
                 <img src="${poster}" class="card-img-top" alt="${serie.name}" style="border-radius: 20px; max-height: 250px; object-fit: cover;">
@@ -153,8 +145,6 @@ function displaySeries(seriesList) {
         `;
         container.appendChild(card);
     });
-
-    // Adiciona os event listeners aos botões
     addEventListeners();
 }
 
@@ -168,8 +158,6 @@ async function searchSeries(query) {
         console.error('Erro ao buscar séries:', error);
     }
 }
-
-// Event Listener para busca
 document.getElementById('searchInput').addEventListener('input', (event) => {
     const query = event.target.value.trim();
     if (query.length > 2) {
@@ -185,9 +173,9 @@ document.getElementById('filterGenre').addEventListener('change', (event) => {
 
     if (genreId) {
         fetchSeriesByGenre(genreId);
-        showGenreToast(event.target.value);  // Exibe o Toast com o nome do gênero
+        showGenreToast(event.target.value); 
     } else {
-        fetchPopularSeries();  // Caso não selecione um gênero, mostra as séries gerais
+        fetchPopularSeries();  
         showGenreToast("Séries gerais");
     }
 });
@@ -201,9 +189,7 @@ async function showSeriesDetails(id) {
         const castResponse = await fetch(`${BASE_URL}/tv/${id}/credits?api_key=${API_KEY}&language=pt-BR`);
         const castData = await castResponse.json();
 
-        const modalContent = document.getElementById('modalContent'); // Referência ao conteúdo do modal
-
-        // Carregar conteúdo no modal
+        const modalContent = document.getElementById('modalContent'); 
         modalContent.innerHTML = `
             <div class="container">
                 <!-- Primeira Row - Imagem e Título -->
@@ -248,7 +234,6 @@ async function showSeriesDetails(id) {
                                 ${castData.cast && castData.cast.length > 0 
                                     ? castData.cast
                                         .reduce((acc, actor, index) => {
-                                            // Verifica se estamos começando um novo slide
                                             if (index % 5 === 0) acc.push([]);
                                             acc[acc.length - 1].push(actor);
                                             return acc;
@@ -287,8 +272,6 @@ async function showSeriesDetails(id) {
                 </div>
             </div>
         `;
-
-        // Inicializar e mostrar o modal
         const modal = new bootstrap.Modal(document.getElementById('seriesModal'));
         modal.show();
 
@@ -328,8 +311,6 @@ async function showFavoriteCards() {
     try {
         const response = await fetch('http://localhost:3000/favorites');
         const favorites = await response.json();
-
-        // Limpar os favoritos antes de exibir
         const favoritesContainer = document.getElementById('favoritesContainer');
         favoritesContainer.innerHTML = '';
 
@@ -338,15 +319,11 @@ async function showFavoriteCards() {
             return;
         }
 
-        // Pega os detalhes das séries favoritas
         const seriesDetails = await Promise.all(favorites.map(async (fav) => {
             const seriesResponse = await fetch(`${BASE_URL}/tv/${fav.id}?api_key=${API_KEY}&language=pt-BR`);
             return seriesResponse.json();
         }));
-
-        // Exibe os favoritos sem duplicação
         displayFavoriteCards(seriesDetails, favoritesContainer);
-
     } catch (error) {
         console.error('Erro ao carregar os favoritos:', error);
     }

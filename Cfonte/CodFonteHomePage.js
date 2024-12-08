@@ -11,24 +11,17 @@ const favorites = [];
 // Chamando displays no carregamento
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Chamar checkServerStatus antes de carregar os dados
         await checkServerStatus();
-
-        // Carregar todas as séries populares de uma vez
         const response = await fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
         const data = await response.json();
 
-        // Exibir séries no carrossel (com limite diferente)
         const uniqueCarouselSeries = data.results.slice(4, 9);
         displayCarousel(uniqueCarouselSeries);
 
-        // Exibir séries nos cards (primeiras 4)
         displayCards(data.results.slice(0, 4));
 
-        // Exibir os favoritos
         showFavoriteCards();
 
-        // Carregar as informações do aluno dinamicamente
         loadAlunoInfo();
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -48,6 +41,7 @@ async function fetchPopularSeries() {
 }
 
 async function addEventListeners() {
+    // Adiciona evento de clique ao botão "Favoritar"
     document.querySelectorAll('.favorite-btn').forEach(async (button) => {
         if (!button.hasAttribute('data-listener')) {
             button.setAttribute('data-listener', 'true');
@@ -74,7 +68,7 @@ async function addEventListeners() {
             const serieId = button.getAttribute('data-id');
             
             button.addEventListener('click', () => {
-                showSeriesDetails(serieId); // Chama a função de detalhes
+                showSeriesDetails(serieId);
             });
         }
     });
@@ -108,35 +102,26 @@ function updateFavoriteUI(icon, tooltip, isFavorite) {
 function showToast(message, type = 'primary') {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toast-message');
-    
-    // Define a mensagem e o tipo de alerta (ex: primary, success, danger)
     toastMessage.textContent = message;
     toast.querySelector('.toast').className = `toast align-items-center text-bg-${type} border-0`;
 
-    // Exibe o toast
     toast.style.display = 'block';
     const bootstrapToast = new bootstrap.Toast(toast.querySelector('.toast'));
     bootstrapToast.show();
-
-    // Esconde o toast após um tempo
     setTimeout(() => {
         bootstrapToast.hide();
     }, 8000);
 }
 async function checkServerStatus() {
     const toastMessage = document.getElementById('toast-message');
-
-    // Exibe a mensagem "Verificando problemas..." no toast
-    showToast('Verificando JsonServer...', 'warning');  // Tipo de alerta pode ser 'warning'
+    showToast('Verificando JsonServer...', 'warning');  
 
     try {
         const response = await fetch('http://localhost:3000/favorites');
         if (!response.ok) throw new Error('Erro no servidor');
         
-        // Se o servidor estiver ativo
         showToast('JSON Server está ativo!', 'success');
     } catch (error) {
-        // Se o servidor não estiver ativo
         showToast('Erro: JSON Server não está ativo! Ative-o no seu terminal.', 'danger');
     }
 }
@@ -228,7 +213,6 @@ async function showSeriesDetails(id) {
                                 ${castData.cast && castData.cast.length > 0 
                                     ? castData.cast
                                         .reduce((acc, actor, index) => {
-                                            // Verifica se estamos começando um novo slide
                                             if (index % 5 === 0) acc.push([]);
                                             acc[acc.length - 1].push(actor);
                                             return acc;
@@ -267,10 +251,6 @@ async function showSeriesDetails(id) {
                 </div>
             </div>
         `;
-
-        // Adicionar funcionalidade ao botão "Adicionar aos Favoritos" no modal
-        // O botão de favoritos agora está no card, não no modal.
-
         modal.show();
     } catch (error) {
         console.error('Erro ao carregar os detalhes da série:', error);
@@ -279,7 +259,7 @@ async function showSeriesDetails(id) {
 
 // Display Carrosel
 function displayCarousel(series) {
-    const carouselContainer = document.getElementById('carouselContainer'); // Contêiner do carrossel
+    const carouselContainer = document.getElementById('carouselContainer');
     carouselContainer.innerHTML = `
         <div id="carrosselSeries" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
@@ -308,7 +288,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch(`${BASE_URL}/tv/popular?api_key=${API_KEY}&language=pt-BR&page=1`);
         const data = await response.json();
-        const uniqueCarouselSeries = data.results.slice(4, 9); // Selecionando séries diferentes das exibidas nos cards
+        const uniqueCarouselSeries = data.results.slice(4, 9);
         displayCarousel(uniqueCarouselSeries);
     } catch (error) {
         console.error('Erro ao carregar séries para o carrossel:', error);
@@ -346,8 +326,6 @@ async function showFavoriteCards() {
     try {
         const response = await fetch('http://localhost:3000/favorites');
         const favorites = await response.json();
-
-        // Limpar os favoritos antes de exibir
         const favoritesContainer = document.getElementById('favoritesContainer');
         favoritesContainer.innerHTML = '';
 
@@ -355,14 +333,10 @@ async function showFavoriteCards() {
             favoritesContainer.innerHTML = '<p>Você ainda não tem séries favoritas.</p>';
             return;
         }
-
-        // Pega os detalhes das séries favoritas
         const seriesDetails = await Promise.all(favorites.map(async (fav) => {
             const seriesResponse = await fetch(`${BASE_URL}/tv/${fav.id}?api_key=${API_KEY}&language=pt-BR`);
             return seriesResponse.json();
         }));
-
-        // Exibe os favoritos sem duplicação
         displayFavoriteCards(seriesDetails, favoritesContainer);
 
     } catch (error) {
@@ -371,15 +345,13 @@ async function showFavoriteCards() {
 }
 
 async function displayFavoriteCards(series, favoritesContainer) {
-    favoritesContainer.innerHTML = ''; // Limpa o conteúdo atual
+    favoritesContainer.innerHTML = ''; 
 
     series.forEach((serie) => {
         const card = document.createElement('div');
         card.classList.add('col-md-3', 'p-2');
 
-        const isFavorite = true; // Série é sempre favorita quando chega aqui
-
-        // Ajusta o botão e a lógica de adicionar/remover
+        const isFavorite = true;
         const buttonHTML = isFavorite
             ? `<button class="btn btn-danger remove-btn" data-id="${serie.id}">Remover dos Favoritos</button>`
             : `<button class="btn btn-primary fav-btn" data-id="${serie.id}">Adicionar aos Favoritos</button>`;
@@ -406,35 +378,27 @@ async function displayFavoriteCards(series, favoritesContainer) {
         favoritesContainer.appendChild(card);
     });
 
-    addEventListeners(); // Adiciona os listeners de evento aos botões
+    addEventListeners(); 
 }
 
 // Informações Aluno
 async function loadAlunoInfo() {
     try {
-        // Fetch para buscar os dados do aluno a partir do endpoint JSON
-        const response = await fetch('http://localhost:3000/aluno'); // Caminho correto para o JSON
+        const response = await fetch('http://localhost:3000/aluno'); 
         if (!response.ok) throw new Error('Não foi possível carregar o arquivo JSON');
 
-        // O JSON contém um array, então precisamos acessar o primeiro item
         const alunoInfoArray = await response.json();
-        const alunoInfo = alunoInfoArray[0]; // Acessando o primeiro objeto do array
-
-        // Verificar se as propriedades existem no JSON
+        const alunoInfo = alunoInfoArray[0];
         if (!alunoInfo || !alunoInfo.redes_sociais) {
             throw new Error('Dados do aluno não encontrados no arquivo JSON');
         }
 
-        // Preencher os dados na página
         document.querySelector('.container .col-md-5 p.text-center').textContent = alunoInfo.comentários;
-
-        // Atualizar links das redes sociais
         const redesSociais = alunoInfo.redes_sociais;
         document.getElementById('instagram').href = redesSociais.instagram;
         document.getElementById('linkedin').href = redesSociais.linkedin;
         document.getElementById('letterboxd').href = redesSociais.letterboxd;
 
-        // Informações do aluno no lado direito
         const listaAluno = document.querySelector('.container .col-md-6 .list-group');
         listaAluno.innerHTML = `
             <li class="list-group-item"><strong>Aluno:</strong> ${alunoInfo.nome}</li>
@@ -443,6 +407,5 @@ async function loadAlunoInfo() {
         `;
     } catch (error) {
         console.error('Erro ao carregar as informações do aluno:', error);
-        showToast('Erro ao carregar as informações do aluno.', 'danger');
     }
 }
